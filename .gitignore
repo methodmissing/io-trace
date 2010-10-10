@@ -1,0 +1,9 @@
+ext/io/Makefile
+ext/io/mkmf.log
+*.o
+*.bundle
+*.so
+*.gem
+*.tmproj
+*.dSYM
+ext/io/conftest.dSYM

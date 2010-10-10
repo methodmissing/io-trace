@@ -1,0 +1,131 @@
+IO tracing framework for Ruby MRI
+  (c) 2010 Lourens Naudé (methodmissing)
+
+  http://github.com/methodmissing/io-trace
+
+Supported Platforms
+
+  Tested and initially developed in an OS X Leopard environment with latest MRI 1.8.7 trunk.
+  Pending testing in BSD and Solaris environments, although the D + dtrace subset used is
+  known to be cross platform.See the TODO section for further caveats and a roadmap estimate.
+
+How it works
+
+  We support a number of predefined (and locked down) tracing strategies.
+
+  IO::Trace::SUMMARY default, no FD, file or line specific contexts
+  IO::Trace::SETUP   connect, open, close, fcntl, stat etc.
+  IO::Trace::READ    read, receive etc.
+  IO::Trace::WRITE   write, send etc.
+  IO::Trace::ALL     combo of SETUP, READ and WRITE
+
+  Formatting of results (aggregates) is open ended and allows the user to extend with their
+  own formatters in Ruby.Formatters is expected to implement a lambda{|stream, lambda| ... }
+  contract.
+
+  High level steps per trace run include
+
+  - Parse and compile a strategy
+  - Enable tracing
+  - Setup an MRI event hook for RUBY_EVENT_LINE (called whenever __LINE__ is bumped)
+  - yields the traced block
+  - Unregister event hook
+  - Stops tracing
+  - Snapshot collected aggregates
+  - Walk collected aggregates
+  - Dump results to a stream via a given formatter (both optional)
+
+Use cases
+
+  - Instrumenting IO setup overhead
+  - Figure out where reads / writes is generated from
+  - Per request tracing to ensure we're not doing excessive IO in request / response cycles
+    in a Rack environment
+
+TODO
+
+  - Documentation
+  - Bump test coverage
+  - Abort early on non-superuser perms before allocating tracing resources
+  - Ruby 1.9 support
+  - Instrument IO wait, not just inclusive time
+  - BSD + Solaris testing
+  - Guard against excessive dtrace handle consumption
+  - Split dtrace specific infrastructure to ext/framework/dtrace.h
+  - Introduce support for SystemTap (http://sourceware.org/systemtap/)
+  - Improve on middleware
+  - Flesh out more focussed web app specific strategies
+
+config.ru
+
+  require "io/trace"
+  require "logger"
+  require "net/http"
+
+  app = lambda do |env|
+    resp = Net::HTTP.get('www.wildfireapp.com', '/')
+    [200, {"Content-Type" => "text/plain"}, [resp]]
+  end
+
+  use IO::Trace::Middleware, :strategy => :WRITE, :stream => Logger.new(STDOUT)
+  run app
+
+read strategy
+
+methodmissing-2:race lourens$ sudo rackup
+[2010-10-07 01:22:51] INFO  WEBrick 1.3.1
+[2010-10-07 01:22:51] INFO  ruby 1.8.7 (2010-01-10) [i686-darwin10.4.0]
+[2010-10-07 01:22:51] INFO  WEBrick::HTTPServer#start: pid=4709 port=9292
+
+File                                                                          Line    Probe              FD   Feature    
+
+/Users/lourens/.rvm/rubies/ruby-1.8.7-p249/lib/ruby/1.8/net/protocol.rb       135     readv_nocancel     8    bytes      56276
+/Users/lourens/.rvm/rubies/ruby-1.8.7-p249/lib/ruby/1.8/net/protocol.rb       135     readv_nocancel     8    time       1.053446 ms
+/Users/lourens/.rvm/rubies/ruby-1.8.7-p249/lib/ruby/1.8/net/protocol.rb       135     readv_nocancel     8    cpu        0.587824 ms
+/Users/lourens/.rvm/rubies/ruby-1.8.7-p249/lib/ruby/1.8/net/protocol.rb       135     readv_nocancel     8    calls      21
+/Users/lourens/.rvm/rubies/ruby-1.8.7-p249/lib/ruby/1.8/net/http.rb           706     recvfrom_nocancel  4    bytes      442
+/Users/lourens/.rvm/rubies/ruby-1.8.7-p249/lib/ruby/1.8/net/http.rb           706     recvfrom_nocancel  4    time       1.528309 ms
+/Users/lourens/.rvm/rubies/ruby-1.8.7-p249/lib/ruby/1.8/net/http.rb           706     recvfrom_nocancel  4    cpu        0.044459 ms
+/Users/lourens/.rvm/rubies/ruby-1.8.7-p249/lib/ruby/1.8/net/http.rb           706     recvfrom_nocancel  4    calls      8
+/Users/lourens/.rvm/rubies/ruby-1.8.7-p249/lib/ruby/1.8/net/http.rb           706     recvfrom_nocancel  9    bytes      8
+/Users/lourens/.rvm/rubies/ruby-1.8.7-p249/lib/ruby/1.8/net/http.rb           706     recvfrom_nocancel  9    time       0.651593 ms
+/Users/lourens/.rvm/rubies/ruby-1.8.7-p249/lib/ruby/1.8/net/http.rb           706     recvfrom_nocancel  9    cpu        0.020702 ms
+/Users/lourens/.rvm/rubies/ruby-1.8.7-p249/lib/ruby/1.8/net/http.rb           706     recvfrom_nocancel  9    calls      2
+127.0.0.1 - - [07/Oct/2010 01:22:57] "GET / HTTP/1.1" 200 55706 1.1169
+^C[2010-10-07 01:23:03] INFO  going to shutdown ...
+[2010-10-07 01:23:03] INFO  WEBrick::HTTPServer#start done.
+
+write strategy
+
+methodmissing-2:race lourens$ sudo rackup
+[2010-10-07 01:23:17] INFO  WEBrick 1.3.1
+[2010-10-07 01:23:17] INFO  ruby 1.8.7 (2010-01-10) [i686-darwin10.4.0]
+[2010-10-07 01:23:17] INFO  WEBrick::HTTPServer#start: pid=4716 port=9292
+
+File                                                                          Line    Probe              FD   Feature    
+
+/Users/lourens/.rvm/rubies/ruby-1.8.7-p249/lib/ruby/1.8/net/protocol.rb       177     writev_nocancel    8    bytes      58
+/Users/lourens/.rvm/rubies/ruby-1.8.7-p249/lib/ruby/1.8/net/protocol.rb       177     writev_nocancel    8    time       0.057234 ms
+/Users/lourens/.rvm/rubies/ruby-1.8.7-p249/lib/ruby/1.8/net/protocol.rb       177     writev_nocancel    8    cpu        0.032078 ms
+/Users/lourens/.rvm/rubies/ruby-1.8.7-p249/lib/ruby/1.8/net/protocol.rb       177     writev_nocancel    8    calls      1
+/Users/lourens/.rvm/rubies/ruby-1.8.7-p249/lib/ruby/1.8/net/http.rb           706     sendto_nocancel    4    bytes      2
+/Users/lourens/.rvm/rubies/ruby-1.8.7-p249/lib/ruby/1.8/net/http.rb           706     sendto_nocancel    4    time       0.034803 ms
+/Users/lourens/.rvm/rubies/ruby-1.8.7-p249/lib/ruby/1.8/net/http.rb           706     sendto_nocancel    4    cpu        0.011973 ms
+/Users/lourens/.rvm/rubies/ruby-1.8.7-p249/lib/ruby/1.8/net/http.rb           706     sendto_nocancel    4    calls      2
+/Users/lourens/.rvm/rubies/ruby-1.8.7-p249/lib/ruby/1.8/net/http.rb           706     sendto_nocancel    4    bytes      178
+/Users/lourens/.rvm/rubies/ruby-1.8.7-p249/lib/ruby/1.8/net/http.rb           706     sendto_nocancel    4    time       0.664275 ms
+/Users/lourens/.rvm/rubies/ruby-1.8.7-p249/lib/ruby/1.8/net/http.rb           706     sendto_nocancel    4    cpu        0.034724 ms
+/Users/lourens/.rvm/rubies/ruby-1.8.7-p249/lib/ruby/1.8/net/http.rb           706     sendto_nocancel    4    calls      4
+127.0.0.1 - - [07/Oct/2010 01:23:22] "GET / HTTP/1.1" 200 55706 1.1833
+^C[2010-10-07 01:23:31] INFO  going to shutdown ...
+[2010-10-07 01:23:32] INFO  WEBrick::HTTPServer#start done.
+
+To run the test suite:
+
+  rake
+
+Middleware example:
+
+  rake test:middleware
+
+Work in progress, thanks for watching!
