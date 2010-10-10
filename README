@@ -9,6 +9,8 @@ Supported Platforms
   Pending testing in BSD and Solaris environments, although the D + dtrace subset used is
   known to be cross platform.See the TODO section for further caveats and a roadmap estimate.
 
+  Very much work in progress at the moment, but usable in a development environment on OS X.
+
 How it works
 
   We support a number of predefined (and locked down) tracing strategies.
