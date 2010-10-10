@@ -22,7 +22,7 @@ How it works
   IO::Trace::ALL     combo of SETUP, READ and WRITE
 
   Formatting of results (aggregates) is open ended and allows the user to extend with their
-  own formatters in Ruby.Formatters is expected to implement a lambda{|stream, lambda| ... }
+  own formatters in Ruby.Formatters is expected to implement a lambda{|stream, trace| ... }
   contract.
 
   High level steps per trace run include

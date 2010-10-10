@@ -43,6 +43,7 @@ VALUE rb_cTrace, rb_eTraceError, rb_cTraceAggregation;
 #define GetIOTracerAggregation(obj) (Check_Type(obj, T_DATA), (io_trace_aggregation_t*)DATA_PTR(obj))
 #define DtraceErrorMsg(obj) dtrace_errmsg(obj->handle, dtrace_errno(obj->handle))
 #define DtraceError(obj, msg) rb_raise(rb_eTraceError, (msg), DtraceErrorMsg(obj))
+#define TraceError(msg) rb_raise(rb_eTraceError, (msg))
 #define BlockRequired() if (!rb_block_given_p()) rb_raise(rb_eArgError, "block required!")
 #define CoerceFromHash(obj, macro) \
     if(!NIL_P(obj = rb_hash_aref(values, ID2SYM(rb_intern(#obj))))) \
@@ -52,10 +53,10 @@ VALUE rb_cTrace, rb_eTraceError, rb_cTraceAggregation;
     buf = ALLOC_N(char, len + 1); \
     snprintf(buf, len + 1, (fmt), a->file, a->line, a->probe, a->fd, a->feature, (val));
 #define AggregationTypeP(agg) (strcmp(a->feature, agg) == 0) ? Qtrue : Qfalse;
-#define RegisterHandler(func, handler) \
+#define RegisterHandler(func, handler, err_msg) \
     Trace(ret = func(trace->handle, &(handler), (void*)trace)); \
     if (ret == -1) \
-       DtraceError(trace, "failed to establish error handler");
+       DtraceError(trace, err_msg);
 
 #define IO_TRACE_SUMMARY 1
 #define IO_TRACE_ALL 2

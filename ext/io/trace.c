@@ -367,17 +367,18 @@ rb_io_trace_init(int argc, VALUE *argv, VALUE obj)
     rb_scan_args(argc, argv, "01", &trace->strategy);
     if (NIL_P(trace->strategy)) 
       trace->strategy = rb_const_get(rb_cTrace, rb_intern("SUMMARY"));
-    RegisterHandler(dtrace_handle_err, rb_io_trace_errhandler);
-    RegisterHandler(dtrace_handle_drop, rb_io_trace_drophandler);
-    RegisterHandler(dtrace_handle_proc, rb_io_trace_prochandler);
-    RegisterHandler(dtrace_handle_setopt, rb_io_trace_setopthandler);
-    RegisterHandler(dtrace_handle_buffered, rb_io_trace_bufhandler);
+    RegisterHandler(dtrace_handle_err, rb_io_trace_errhandler, "failed to establish error handler");
+    RegisterHandler(dtrace_handle_drop, rb_io_trace_drophandler, "failed to establish drop handler");
+    RegisterHandler(dtrace_handle_proc, rb_io_trace_prochandler, "failed to establish proc handler");
+    RegisterHandler(dtrace_handle_setopt, rb_io_trace_setopthandler, "failed to establish setopt handler");
+    RegisterHandler(dtrace_handle_buffered, rb_io_trace_bufhandler, "failed to establish buffered handler");
 
     switch(FIX2INT(trace->strategy)){
       case IO_TRACE_SUMMARY : script = summary_script;
                               break;
       case IO_TRACE_ALL     : len = strlen(read_script) + strlen(write_script) + strlen(setup_script);
                               script = ALLOC_N(char, len + 1);
+                              if (!script) TraceError("unable to allocate a script buffer");
                               snprintf(script, len + 1, "%s%s%s", read_script, write_script, setup_script);
                               break;
       case IO_TRACE_READ    : script = read_script;
@@ -447,6 +448,7 @@ rb_io_trace_walk(const dtrace_aggdata_t *data, void * arg)
     dtrace_recdesc_t *fdr, *fr, *lr, *kr, *dr;
     io_trace_aggregation_t *a;
     a = ALLOC(io_trace_aggregation_t);
+    if (!a) TraceError("unable to allocate an aggregation structure");
     rb_io_trace_init_aggregation(a);
     fr = &ad->dtagd_rec[2];
     lr = &ad->dtagd_rec[3];
