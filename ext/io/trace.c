@@ -56,7 +56,12 @@ static void rb_io_trace_mark_aggregation(io_trace_aggregation_t* r)
 */
 static void rb_io_trace_free_aggregation(io_trace_aggregation_t* a)
 {
-    if (a) xfree(a);
+    if (a){
+      xfree(a->probe);
+      xfree(a->feature);
+      xfree(a->file);
+      xfree(a);
+    }
 }
 
 /*
@@ -245,7 +250,6 @@ static void
 rb_io_trace_close_handle(io_trace_t* t)
 {
     switch(dtrace_status(t->handle)){
-      case DTRACE_STATUS_NONE:
       case DTRACE_STATUS_OKAY:
       case DTRACE_STATUS_FILLED:
       case DTRACE_STATUS_STOPPED:
@@ -331,7 +335,7 @@ rb_io_trace_aggregation_init(int argc, VALUE *argv, VALUE obj)
 
     rb_scan_args(argc, argv, "01", &values);
     if(!NIL_P(values)){
-      Check_Type (values, T_HASH);
+      Check_Type(values, T_HASH);
       CoerceFromHash(probe, RSTRING_PTR);
       CoerceFromHash(feature, RSTRING_PTR);
       CoerceFromHash(file, RSTRING_PTR);
@@ -454,10 +458,16 @@ rb_io_trace_walk(const dtrace_aggdata_t *data, void * arg)
     lr = &ad->dtagd_rec[3];
     fdr = &ad->dtagd_rec[4];
     dr = &ad->dtagd_rec[5];
-    a->probe = pd->dtpd_func;
-    a->feature = ad->dtagd_name;
+    a->probe = ALLOC_N(char, strlen(pd->dtpd_func));
+    if (!a->probe) TraceError("unable to allocate a probe name buffer");
+    strcpy(a->probe, pd->dtpd_func);
+    a->feature = ALLOC_N(char, strlen(ad->dtagd_name));
+    if (!a->feature) TraceError("unable to allocate a feature name buffer");
+    strcpy(a->feature, ad->dtagd_name);
+    a->file = ALLOC_N(char, strlen((data->dtada_data + fr->dtrd_offset)));
+    if (!a->file) TraceError("unable to allocate a file name buffer");
+    strcpy(a->file, (data->dtada_data + fr->dtrd_offset));
     a->fd = *(int *)(data->dtada_data + fdr->dtrd_offset);
-    a->file = (data->dtada_data + fr->dtrd_offset);
     a->line = *(int *)(data->dtada_data + lr->dtrd_offset);
     a->value = *(uint64_t *)(data->dtada_data + dr->dtrd_offset);
     rb_ary_push(trace->aggregations, rb_io_trace_aggregation_wrap(a));
@@ -490,7 +500,7 @@ static VALUE
 rb_io_trace_formatter(io_trace_t* trace, VALUE formatter){
     VALUE formatters;
     formatters = rb_const_get(rb_cTrace, rb_intern("FORMATTERS"));
-    Check_Type (formatters, T_HASH);
+    Check_Type(formatters, T_HASH);
     if (NIL_P(formatter)) formatter = ID2SYM(rb_intern("default"));
     return rb_hash_aref(formatters, formatter);
 }
@@ -561,7 +571,7 @@ Init_trace()
     rb_define_method(rb_cTrace, "aggregations", rb_io_trace_aggregations, 0);
     rb_define_method(rb_cTrace, "close", rb_io_trace_close, 0);
 
-    rb_eTraceError = rb_define_class("TraceError", rb_eIOError);
+    rb_eTraceError = rb_define_class_under(rb_cIO, "TraceError", rb_eIOError);
 
     rb_define_const(rb_cTrace, "SUMMARY", INT2NUM(IO_TRACE_SUMMARY));
     rb_define_const(rb_cTrace, "ALL", INT2NUM(IO_TRACE_ALL));

@@ -44,8 +44,9 @@ class IO
   def self.trace(strategy = Trace::SUMMARY, stream = nil, formatter = nil, &b)
     r = Trace.new(trace_strategy(strategy))
     r.run(stream, formatter, &b)
-  ensure
-    r.close if r
+  rescue IO::TraceError
+    r.close
+    raise
   end
 
   private
