@@ -7,7 +7,7 @@ require "logger"
 require "net/http"
 
 app = lambda do |env|
-  resp = Net::HTTP.get('www.google.com', '/')
+  resp = Net::HTTP.get('www.wildfireapp.com', '/')
   [200, {"Content-Type" => "text/plain"}, [resp]]
 end
 

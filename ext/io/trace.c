@@ -57,8 +57,8 @@ static void rb_io_trace_mark_aggregation(io_trace_aggregation_t* r)
 static void rb_io_trace_free_aggregation(io_trace_aggregation_t* a)
 {
     if (a){
-      xfree(a->probe);
-      xfree(a->feature);
+      xfree(a->syscall);
+      xfree(a->metric);
       xfree(a->file);
       xfree(a);
     }
@@ -70,8 +70,8 @@ static void rb_io_trace_free_aggregation(io_trace_aggregation_t* a)
 static void
 rb_io_trace_init_aggregation(io_trace_aggregation_t* as)
 {
-    as->probe = NULL;
-    as->feature = NULL;
+    as->syscall = NULL;
+    as->metric = NULL;
     as->file = NULL;
     as->fd = 0;
     as->line = 0;
@@ -100,7 +100,7 @@ rb_io_trace_aggregation_inspect(VALUE obj)
     size_t len;
     char* buf;
     bzero(buf, 0);
-    if (strcmp(a->feature, "cpu") == 0 || strcmp(a->feature, "time") == 0){
+    if (strcmp(a->metric, "cpu") == 0 || strcmp(a->metric, "time") == 0){
       InspectAggregation(((double)a->value / 1000000), "%-40.40s %-7d %-18s %-4d %-10s %f ms\n");
     }else{
       InspectAggregation((long int)a->value, "%-40.40s %-7d %-18s %-4d %-10s %ld\n");
@@ -109,27 +109,27 @@ rb_io_trace_aggregation_inspect(VALUE obj)
 }
 
 /*
- * IO::Trace::Aggregation#probe => string
+ * IO::Trace::Aggregation#syscall => string
  *
  * Probe / syscall this aggregation represents
 */
 static VALUE
-rb_io_trace_aggregation_probe(VALUE obj)
+rb_io_trace_aggregation_syscall(VALUE obj)
 {
     io_trace_aggregation_t* a = GetIOTracerAggregation(obj);
-    return (a->probe == NULL) ? Qnil : rb_str_new2(a->probe);
+    return (a->syscall == NULL) ? Qnil : rb_str_new2(a->syscall);
 }
 
 /*
- * IO::Trace::Aggregation#feature => string
+ * IO::Trace::Aggregation#metric => string
  *
  * Feature / dimension this aggregation represents
 */
 static VALUE
-rb_io_trace_aggregation_feature(VALUE obj)
+rb_io_trace_aggregation_metric(VALUE obj)
 {
     io_trace_aggregation_t* a = GetIOTracerAggregation(obj);
-    return (a->feature == NULL) ? Qnil : rb_str_new2(a->feature);
+    return (a->metric == NULL) ? Qnil : rb_str_new2(a->metric);
 }
 
 /*
@@ -188,7 +188,7 @@ rb_io_trace_aggregation_value(VALUE obj)
 {
     io_trace_aggregation_t* a = GetIOTracerAggregation(obj);
     if (a->value == 0) return INT2NUM(a->value);
-    if (strcmp(a->feature, "cpu") == 0 || strcmp(a->feature, "time") == 0){
+    if (strcmp(a->metric, "cpu") == 0 || strcmp(a->metric, "time") == 0){
       return rb_io_convert_time(a->value);
     }else{
       return INT2NUM(a->value);
@@ -249,12 +249,15 @@ rb_io_trace_aggregation_time_p(VALUE obj)
 static void 
 rb_io_trace_close_handle(io_trace_t* t)
 {
-    switch(dtrace_status(t->handle)){
-      case DTRACE_STATUS_OKAY:
-      case DTRACE_STATUS_FILLED:
-      case DTRACE_STATUS_STOPPED:
-           Trace(dtrace_close(t->handle));
-           break;
+    if(t->closed == 0){
+      switch(dtrace_status(t->handle)){
+        case DTRACE_STATUS_OKAY:
+        case DTRACE_STATUS_FILLED:
+        case DTRACE_STATUS_STOPPED:
+             Trace(dtrace_close(t->handle));
+             t->closed = 1;
+             break;
+      }
     }
 }
 
@@ -267,6 +270,7 @@ rb_io_trace_mark(io_trace_t* t)
     if(t){
       rb_gc_mark(t->stream);
       rb_gc_mark(t->strategy);
+      rb_gc_mark(t->formatter);
       rb_gc_mark(t->aggregations);
     }
 }
@@ -297,12 +301,16 @@ rb_io_trace_alloc(VALUE obj)
    io_trace_t* ts;
    trace = Data_Make_Struct(obj, io_trace_t, rb_io_trace_mark, rb_io_trace_free, ts);
    ts->stream = Qnil;
+   ts->formatter = Qnil;
    ts->strategy = Qnil;
+   ts->aggregations = Qnil;
    ts->prog = NULL;
    ts->info = NULL;
+   ts->closed = 1;
    Trace(ts->handle = dtrace_open(DTRACE_VERSION, 0, &err));
    if (ts->handle == NULL)
      rb_raise(rb_eTraceError, "Cannot open dtrace library: %s\n", dtrace_errmsg(NULL, err));
+   ts->closed = 0;
    ts->aggregations = rb_ary_new();
    return trace;
 }
@@ -330,14 +338,14 @@ rb_io_trace_aggregation_alloc(VALUE obj)
 static VALUE
 rb_io_trace_aggregation_init(int argc, VALUE *argv, VALUE obj)
 {
-    VALUE values, probe, feature, fd, file, line, value;
+    VALUE values, syscall, metric, fd, file, line, value;
     io_trace_aggregation_t* a = GetIOTracerAggregation(obj);
 
     rb_scan_args(argc, argv, "01", &values);
     if(!NIL_P(values)){
       Check_Type(values, T_HASH);
-      CoerceFromHash(probe, RSTRING_PTR);
-      CoerceFromHash(feature, RSTRING_PTR);
+      CoerceFromHash(syscall, RSTRING_PTR);
+      CoerceFromHash(metric, RSTRING_PTR);
       CoerceFromHash(file, RSTRING_PTR);
       CoerceFromHash(fd, NUM2INT);
       CoerceFromHash(line, NUM2INT);
@@ -458,12 +466,12 @@ rb_io_trace_walk(const dtrace_aggdata_t *data, void * arg)
     lr = &ad->dtagd_rec[3];
     fdr = &ad->dtagd_rec[4];
     dr = &ad->dtagd_rec[5];
-    a->probe = ALLOC_N(char, strlen(pd->dtpd_func));
-    if (!a->probe) TraceError("unable to allocate a probe name buffer");
-    strcpy(a->probe, pd->dtpd_func);
-    a->feature = ALLOC_N(char, strlen(ad->dtagd_name));
-    if (!a->feature) TraceError("unable to allocate a feature name buffer");
-    strcpy(a->feature, ad->dtagd_name);
+    a->syscall = ALLOC_N(char, strlen(pd->dtpd_func));
+    if (!a->syscall) TraceError("unable to allocate a syscall name buffer");
+    strcpy(a->syscall, pd->dtpd_func);
+    a->metric = ALLOC_N(char, strlen(ad->dtagd_name));
+    if (!a->metric) TraceError("unable to allocate a metricname buffer");
+    strcpy(a->metric, ad->dtagd_name);
     a->file = ALLOC_N(char, strlen((data->dtada_data + fr->dtrd_offset)));
     if (!a->file) TraceError("unable to allocate a file name buffer");
     strcpy(a->file, (data->dtada_data + fr->dtrd_offset));
@@ -497,12 +505,14 @@ rb_io_trace_event_hook(rb_event_flag_t event, VALUE data, VALUE self, ID mid, VA
  * Expects a IO::Trace::FORMATTERS to be a symbolized Hash.
 */
 static VALUE
-rb_io_trace_formatter(io_trace_t* trace, VALUE formatter){
-    VALUE formatters;
-    formatters = rb_const_get(rb_cTrace, rb_intern("FORMATTERS"));
+rb_io_trace_formatter(io_trace_t* trace){
+    VALUE formatters, formatter;
+    formatters = rb_const_get(rb_cTrace, id_formatters);
     Check_Type(formatters, T_HASH);
-    if (NIL_P(formatter)) formatter = ID2SYM(rb_intern("default"));
-    return rb_hash_aref(formatters, formatter);
+    if (NIL_P(trace->formatter)) trace->formatter = ID2SYM(id_default);
+    formatter = rb_hash_aref(formatters, trace->formatter);
+    if (!rb_respond_to(formatter, id_call)) TraceError("formatter does not respond to #call");
+    return formatter;
 }
 
 /*
@@ -523,13 +533,13 @@ static VALUE
 rb_io_trace_run(int argc, VALUE *argv, VALUE obj)
 {
     io_trace_t* trace = GetIOTracer(obj);
-    VALUE formatter, fmt, result;
+    VALUE formatter, result;
     int ret;
     result = Qnil;
 
     BlockRequired();
 
-    rb_scan_args(argc, argv, "02", &trace->stream, &formatter);
+    rb_scan_args(argc, argv, "02", &trace->stream, &trace->formatter);
 
     Trace(ret = dtrace_go(trace->handle));
     if(ret < 0)
@@ -540,7 +550,8 @@ rb_io_trace_run(int argc, VALUE *argv, VALUE obj)
     rb_add_event_hook(rb_io_trace_event_hook, RUBY_EVENT_LINE, Qnil);
 #endif
     result = rb_yield(Qnil);
-    rb_remove_event_hook(rb_io_trace_event_hook);
+    if (rb_remove_event_hook(rb_io_trace_event_hook) == -1)
+      TraceError("could not remove event hook");
     Trace(ret = dtrace_stop(trace->handle));
     if(ret < 0)
       DtraceError(trace, "could not disable tracing");
@@ -552,8 +563,8 @@ rb_io_trace_run(int argc, VALUE *argv, VALUE obj)
       DtraceError(trace, "could not walk the aggregate snapshot");
     Trace(dtrace_aggregate_clear(trace->handle));
     if(!NIL_P(trace->stream)){
-      fmt = rb_io_trace_formatter(trace, formatter);
-      rb_funcall(fmt, id_call, 2, obj, trace->stream);
+      formatter = rb_io_trace_formatter(trace);
+      rb_funcall(formatter, id_call, 2, obj, trace->stream);
     }
     return result;
 }
@@ -563,6 +574,8 @@ Init_trace()
 {
     id_new = rb_intern("new");
     id_call = rb_intern("call");
+    id_formatters = rb_intern("FORMATTERS");
+    id_default = rb_intern("default");
 
     rb_cTrace = rb_define_class_under(rb_cIO, "Trace", rb_cObject);
     rb_define_alloc_func(rb_cTrace, rb_io_trace_alloc);
@@ -584,8 +597,8 @@ Init_trace()
     rb_define_method(rb_cTraceAggregation, "initialize", rb_io_trace_aggregation_init, -1);
     rb_define_method(rb_cTraceAggregation, "inspect", rb_io_trace_aggregation_inspect, 0);
     rb_define_method(rb_cTraceAggregation, "to_s", rb_io_trace_aggregation_inspect, 0);
-    rb_define_method(rb_cTraceAggregation, "probe", rb_io_trace_aggregation_probe, 0);
-    rb_define_method(rb_cTraceAggregation, "feature", rb_io_trace_aggregation_feature, 0);
+    rb_define_method(rb_cTraceAggregation, "syscall", rb_io_trace_aggregation_syscall, 0);
+    rb_define_method(rb_cTraceAggregation, "metric", rb_io_trace_aggregation_metric, 0);
     rb_define_method(rb_cTraceAggregation, "file", rb_io_trace_aggregation_file, 0);
     rb_define_method(rb_cTraceAggregation, "fd", rb_io_trace_aggregation_fd, 0);
     rb_define_method(rb_cTraceAggregation, "line", rb_io_trace_aggregation_line, 0);

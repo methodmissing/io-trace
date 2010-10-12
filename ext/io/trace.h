@@ -22,21 +22,23 @@ typedef struct {
     dtrace_hdl_t *handle;
     dtrace_prog_t *prog;
     dtrace_proginfo_t *info;
+    short int closed;
     VALUE aggregations;
     VALUE stream;
+    VALUE formatter;
     VALUE strategy;
 } io_trace_t;
 
 typedef struct {
-    char* probe;
-    char* feature;
-    int fd;
+    char* syscall;
+    char* metric;
     char* file;
+    int fd;
     int line;
     uint64_t value;
 } io_trace_aggregation_t;
 
-ID id_new, id_call;
+ID id_new, id_call, id_formatters, id_default;
 VALUE rb_cTrace, rb_eTraceError, rb_cTraceAggregation;
 
 #define GetIOTracer(obj) (Check_Type(obj, T_DATA), (io_trace_t*)DATA_PTR(obj))
@@ -49,10 +51,10 @@ VALUE rb_cTrace, rb_eTraceError, rb_cTraceAggregation;
     if(!NIL_P(obj = rb_hash_aref(values, ID2SYM(rb_intern(#obj))))) \
       a->obj = macro(obj);
 #define InspectAggregation(val, fmt) \
-    len = snprintf(buf, 0, (fmt), a->file, a->line, a->probe, a->fd, a->feature, (val)); \
+    len = snprintf(buf, 0, (fmt), a->file, a->line, a->syscall, a->fd, a->metric, (val)); \
     buf = ALLOC_N(char, len + 1); \
-    snprintf(buf, len + 1, (fmt), a->file, a->line, a->probe, a->fd, a->feature, (val));
-#define AggregationTypeP(agg) (strcmp(a->feature, agg) == 0) ? Qtrue : Qfalse;
+    snprintf(buf, len + 1, (fmt), a->file, a->line, a->syscall, a->fd, a->metric, (val));
+#define AggregationTypeP(agg) (strcmp(a->metric, agg) == 0) ? Qtrue : Qfalse;
 #define RegisterHandler(func, handler, err_msg) \
     Trace(ret = func(trace->handle, &(handler), (void*)trace)); \
     if (ret == -1) \
