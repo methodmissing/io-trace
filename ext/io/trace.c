@@ -76,6 +76,7 @@ rb_io_trace_init_aggregation(io_trace_aggregation_t* as)
     as->fd = 0;
     as->line = 0;
     as->value = 0;
+    as->fmt_as_time = -1;
 }
 
 /*
@@ -85,6 +86,18 @@ static VALUE
 rb_io_trace_aggregation_wrap(io_trace_aggregation_t* as)
 {
     return Data_Wrap_Struct(rb_cTraceAggregation, rb_io_trace_mark_aggregation, rb_io_trace_free_aggregation, as);
+}
+
+short int
+rb_io_trace_aggregation_format_time_p(io_trace_aggregation_t* a)
+{
+    if (a->fmt_as_time != -1) return a->fmt_as_time;
+    if (strcmp(a->metric, "cpu") == 0 || strcmp(a->metric, "time") == 0){
+      a->fmt_as_time = 1;
+    }else{
+      a->fmt_as_time = 0;
+    }
+    return a->fmt_as_time;
 }
 
 /*
@@ -101,7 +114,7 @@ rb_io_trace_aggregation_inspect(VALUE obj)
     char* buf = NULL;
     char* file = NULL;
     double val;
-    if (strcmp(a->metric, "cpu") == 0 || strcmp(a->metric, "time") == 0){
+    if (rb_io_trace_aggregation_format_time_p(a)){
       val = ((double)a->value / 1000000);
       if (val >= 1000){
         InspectAggregation(val / 1000, "%-40.40s %-7d %-18s %-4d %-10s %.02f s\n");
@@ -194,7 +207,7 @@ rb_io_trace_aggregation_value(VALUE obj)
 {
     io_trace_aggregation_t* a = GetIOTracerAggregation(obj);
     if (a->value == 0) return INT2NUM(a->value);
-    if (strcmp(a->metric, "cpu") == 0 || strcmp(a->metric, "time") == 0){
+    if (rb_io_trace_aggregation_format_time_p(a)){
       return rb_io_convert_time(a->value);
     }else{
       return INT2NUM(a->value);

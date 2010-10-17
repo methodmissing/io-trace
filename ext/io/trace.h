@@ -39,6 +39,7 @@ typedef struct {
     int fd;
     int line;
     uint64_t value;
+    short int fmt_as_time;
 } io_trace_aggregation_t;
 
 ID id_new, id_call, id_formatters, id_default;
@@ -69,8 +70,7 @@ static FILE *devnull;
 #define AggregationTypeP(agg) (strcmp(a->metric, agg) == 0) ? Qtrue : Qfalse;
 #define RegisterHandler(func, handler, err_msg) \
     Trace(ret = func(trace->handle, &(handler), (void*)trace)); \
-    if (ret == -1) \
-       DtraceError(trace, err_msg);
+    if (ret == -1) DtraceError(trace, err_msg);
 
 #define IO_TRACE_SUMMARY 1
 #define IO_TRACE_ALL 2
