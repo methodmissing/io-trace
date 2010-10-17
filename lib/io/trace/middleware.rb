@@ -7,11 +7,9 @@ class IO
       end
 
       def call(env)
-        ret = nil
         IO.trace(@options[:strategy], @options[:stream], @options[:formatter]) do
-          ret = @app.call(env)
+          @app.call(env)
         end
-        ret
       end
     end
   end
