@@ -62,9 +62,11 @@ static FILE *devnull;
      } \
     }
 #define InspectAggregation(val, fmt) \
-    len = fprintf(devnull, (fmt), a->file, a->line, a->syscall, a->fd, a->metric, (val)) + 1; \
+    file = a->file; \
+    if((len = strlen(file)) >= 40) sprintf(file, "%.*s", 40, &file[len-40]); \
+    len = fprintf(devnull, (fmt), file, a->line, a->syscall, a->fd, a->metric, (val)) + 1; \
     buf = ALLOC_N(char, len); \
-    len = snprintf(buf, len, (fmt), a->file, a->line, a->syscall, a->fd, a->metric, (val));
+    len = snprintf(buf, len, (fmt), file, a->line, a->syscall, a->fd, a->metric, (val));
 #define AggregationTypeP(agg) (strcmp(a->metric, agg) == 0) ? Qtrue : Qfalse;
 #define RegisterHandler(func, handler, err_msg) \
     Trace(ret = func(trace->handle, &(handler), (void*)trace)); \

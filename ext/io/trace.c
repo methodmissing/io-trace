@@ -99,6 +99,7 @@ rb_io_trace_aggregation_inspect(VALUE obj)
     io_trace_aggregation_t* a = GetIOTracerAggregation(obj);
     size_t len;
     char* buf = NULL;
+    char* file = NULL;
     double val;
     if (strcmp(a->metric, "cpu") == 0 || strcmp(a->metric, "time") == 0){
       val = ((double)a->value / 1000000);
