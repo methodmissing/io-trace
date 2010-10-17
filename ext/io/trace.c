@@ -98,9 +98,8 @@ rb_io_trace_aggregation_inspect(VALUE obj)
 {
     io_trace_aggregation_t* a = GetIOTracerAggregation(obj);
     size_t len;
-    char* buf;
+    char* buf = NULL;
     double val;
-    bzero(buf, 0);
     if (strcmp(a->metric, "cpu") == 0 || strcmp(a->metric, "time") == 0){
       val = ((double)a->value / 1000000);
       if (val >= 1000){
@@ -378,7 +377,7 @@ static VALUE
 rb_io_trace_init(int argc, VALUE *argv, VALUE obj)
 {
     io_trace_t* trace = GetIOTracer(obj);
-    char *script;
+    char *script = NULL;
     size_t len;
     int ret;
 
@@ -394,10 +393,7 @@ rb_io_trace_init(int argc, VALUE *argv, VALUE obj)
     switch(FIX2INT(trace->strategy)){
       case IO_TRACE_SUMMARY : script = summary_script;
                               break;
-      case IO_TRACE_ALL     : len = strlen(read_script) + strlen(write_script) + strlen(setup_script);
-                              script = ALLOC_N(char, len + 1);
-                              if (!script) TraceError("unable to allocate a script buffer");
-                              snprintf(script, len + 1, "%s%s%s", read_script, write_script, setup_script);
+      case IO_TRACE_ALL     : script = all_script;
                               break;
       case IO_TRACE_READ    : script = read_script;
                               break;
@@ -496,13 +492,13 @@ rb_io_trace_walk(const dtrace_aggdata_t *data, void * arg)
  * agnostic)
 */
 static void
-#ifndef RUBY_VM
-rb_io_trace_event_hook(rb_event_flag_t event, NODE *node, VALUE self, ID mid, VALUE klass)
-#else
+#ifdef RUBY_VM
 rb_io_trace_event_hook(rb_event_flag_t event, VALUE data, VALUE self, ID mid, VALUE klass)
+#else
+rb_io_trace_event_hook(rb_event_flag_t event, NODE *node, VALUE self, ID mid, VALUE klass)
 #endif
 {
-   if(RUBY_LINE_ENABLED()) RUBY_LINE(rb_sourcefile(), rb_sourceline());
+   if(RUBY_LINE_ENABLED()) RUBY_LINE((char*)rb_sourcefile(), (int)rb_sourceline());
 }
 
 /*
@@ -540,24 +536,22 @@ rb_io_trace_run(int argc, VALUE *argv, VALUE obj)
 {
     io_trace_t* trace = GetIOTracer(obj);
     VALUE formatter, result;
-    int ret;
+    int ret, status;
     result = Qnil;
 
     BlockRequired();
 
     rb_scan_args(argc, argv, "02", &trace->stream, &trace->formatter);
-
     Trace(ret = dtrace_go(trace->handle));
     if(ret < 0)
       DtraceError(trace, "could not enable tracing");
-#ifndef RUBY_VM
-    rb_add_event_hook(rb_io_trace_event_hook, RUBY_EVENT_LINE);
+#ifdef RUBY_VM
+  rb_add_event_hook(rb_io_trace_event_hook, RUBY_EVENT_LINE, Qnil);
 #else
-    rb_add_event_hook(rb_io_trace_event_hook, RUBY_EVENT_LINE, Qnil);
+  rb_add_event_hook(rb_io_trace_event_hook, RUBY_EVENT_LINE);
 #endif
-    result = rb_yield(Qnil);
-    if (rb_remove_event_hook(rb_io_trace_event_hook) == -1)
-      TraceError("could not remove event hook");
+    result = rb_protect(rb_yield, obj, &status);
+    rb_remove_event_hook(rb_io_trace_event_hook);
     Trace(ret = dtrace_stop(trace->handle));
     if(ret < 0)
       DtraceError(trace, "could not disable tracing");
@@ -582,6 +576,7 @@ Init_trace()
     id_call = rb_intern("call");
     id_formatters = rb_intern("FORMATTERS");
     id_default = rb_intern("default");
+    devnull = fopen("/dev/null", "w");
 
     rb_cTrace = rb_define_class_under(rb_cIO, "Trace", rb_cObject);
     rb_define_alloc_func(rb_cTrace, rb_io_trace_alloc);

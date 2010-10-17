@@ -1,5 +1,8 @@
 #include <ruby.h>
 #include <dtrace.h>
+#include <sys/types.h>
+#include <sys/stat.h>
+#include <fcntl.h>
 #include "probes.h"
 
 #ifndef RUBY_VM
@@ -40,6 +43,7 @@ typedef struct {
 
 ID id_new, id_call, id_formatters, id_default;
 VALUE rb_cTrace, rb_eTraceError, rb_cTraceAggregation;
+static FILE *devnull;
 
 #define GetIOTracer(obj) (Check_Type(obj, T_DATA), (io_trace_t*)DATA_PTR(obj))
 #define GetIOTracerAggregation(obj) (Check_Type(obj, T_DATA), (io_trace_aggregation_t*)DATA_PTR(obj))
@@ -48,12 +52,19 @@ VALUE rb_cTrace, rb_eTraceError, rb_cTraceAggregation;
 #define TraceError(msg) rb_raise(rb_eTraceError, (msg))
 #define BlockRequired() if (!rb_block_given_p()) rb_raise(rb_eArgError, "block required!")
 #define CoerceFromHash(obj, macro) \
-    if(!NIL_P(obj = rb_hash_aref(values, ID2SYM(rb_intern(#obj))))) \
-      a->obj = macro(obj);
+    if(!NIL_P(obj = rb_hash_aref(values, ID2SYM(rb_intern(#obj))))){ \
+     if (TYPE(obj) == T_STRING){ \
+       a->obj = ALLOC_N(char, strlen(RSTRING_PTR(obj))); \
+       if (!a->obj) TraceError("unable to allocate a buffer"); \
+       strcpy(a->obj, RSTRING_PTR(obj)); \
+     }else{ \
+       a->obj = macro(obj); \
+     } \
+    }
 #define InspectAggregation(val, fmt) \
-    len = snprintf(buf, 0, (fmt), a->file, a->line, a->syscall, a->fd, a->metric, (val)); \
-    buf = ALLOC_N(char, len + 1); \
-    snprintf(buf, len + 1, (fmt), a->file, a->line, a->syscall, a->fd, a->metric, (val));
+    len = fprintf(devnull, (fmt), a->file, a->line, a->syscall, a->fd, a->metric, (val)) + 1; \
+    buf = ALLOC_N(char, len); \
+    len = snprintf(buf, len, (fmt), a->file, a->line, a->syscall, a->fd, a->metric, (val));
 #define AggregationTypeP(agg) (strcmp(a->metric, agg) == 0) ? Qtrue : Qfalse;
 #define RegisterHandler(func, handler, err_msg) \
     Trace(ret = func(trace->handle, &(handler), (void*)trace)); \
