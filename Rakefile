@@ -19,6 +19,7 @@ end
 task :test => :build
 
 namespace :build do
+  file "#{TRACE_ROOT}/scripts.h"
   file "#{TRACE_ROOT}/probes.h"
   file "#{TRACE_ROOT}/trace.h"
   file "#{TRACE_ROOT}/trace.d"
@@ -50,6 +51,8 @@ namespace :build do
   end
 
   CLEAN.include("#{TRACE_ROOT}/Makefile")
+  CLEAN.include("#{TRACE_ROOT}/probes.h")
+  CLEAN.include("#{TRACE_ROOT}/scripts.h")
   CLEAN.include("#{TRACE_ROOT}/trace.#{dlext}")
 end
 

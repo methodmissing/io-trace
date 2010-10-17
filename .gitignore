@@ -7,3 +7,4 @@ ext/io/mkmf.log
 *.tmproj
 *.dSYM
 ext/io/conftest.dSYM
+ext/io/scripts.h

@@ -99,9 +99,15 @@ rb_io_trace_aggregation_inspect(VALUE obj)
     io_trace_aggregation_t* a = GetIOTracerAggregation(obj);
     size_t len;
     char* buf;
+    double val;
     bzero(buf, 0);
     if (strcmp(a->metric, "cpu") == 0 || strcmp(a->metric, "time") == 0){
-      InspectAggregation(((double)a->value / 1000000), "%-40.40s %-7d %-18s %-4d %-10s %f ms\n");
+      val = ((double)a->value / 1000000);
+      if (val >= 1000){
+        InspectAggregation(val / 1000, "%-40.40s %-7d %-18s %-4d %-10s %.02f s\n");
+      }else{
+        InspectAggregation(val, "%-40.40s %-7d %-18s %-4d %-10s %.03f ms\n");
+      }
     }else{
       InspectAggregation((long int)a->value, "%-40.40s %-7d %-18s %-4d %-10s %ld\n");
     }
