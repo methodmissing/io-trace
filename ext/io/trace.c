@@ -350,12 +350,12 @@ rb_io_trace_aggregation_init(int argc, VALUE *argv, VALUE obj)
     rb_scan_args(argc, argv, "01", &values);
     if(!NIL_P(values)){
       Check_Type(values, T_HASH);
-      CoerceFromHash(syscall, RSTRING_PTR);
-      CoerceFromHash(metric, RSTRING_PTR);
-      CoerceFromHash(file, RSTRING_PTR);
-      CoerceFromHash(fd, NUM2INT);
-      CoerceFromHash(line, NUM2INT);
-      CoerceFromHash(value, NUM2INT);
+      CoerceStringFromHash(syscall);
+      CoerceStringFromHash(metric);
+      CoerceStringFromHash(file);
+      CoerceNumericFromHash(fd);
+      CoerceNumericFromHash(line);
+      CoerceNumericFromHash(value);
     }
     return obj;
 }

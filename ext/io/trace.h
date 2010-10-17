@@ -51,16 +51,15 @@ static FILE *devnull;
 #define DtraceError(obj, msg) rb_raise(rb_eTraceError, (msg), DtraceErrorMsg(obj))
 #define TraceError(msg) rb_raise(rb_eTraceError, (msg))
 #define BlockRequired() if (!rb_block_given_p()) rb_raise(rb_eArgError, "block required!")
-#define CoerceFromHash(obj, macro) \
+#define CoerceStringFromHash(obj) \
     if(!NIL_P(obj = rb_hash_aref(values, ID2SYM(rb_intern(#obj))))){ \
-     if (TYPE(obj) == T_STRING){ \
-       a->obj = ALLOC_N(char, strlen(RSTRING_PTR(obj))); \
-       if (!a->obj) TraceError("unable to allocate a buffer"); \
-       strcpy(a->obj, RSTRING_PTR(obj)); \
-     }else{ \
-       a->obj = macro(obj); \
-     } \
+      a->obj = ALLOC_N(char, strlen(RSTRING_PTR(obj))); \
+      if (!a->obj) TraceError("unable to allocate a buffer"); \
+      strcpy(a->obj, RSTRING_PTR(obj)); \
     }
+#define CoerceNumericFromHash(obj) \
+    if(!NIL_P(obj = rb_hash_aref(values, ID2SYM(rb_intern(#obj))))) \
+       a->obj = NUM2INT(obj);
 #define InspectAggregation(val, fmt) \
     file = a->file; \
     if((len = strlen(file)) >= 40) sprintf(file, "%.*s", 40, &file[len-40]); \
