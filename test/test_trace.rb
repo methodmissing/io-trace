@@ -1,8 +1,13 @@
 class TestTrace < Test::Unit::TestCase
-  STRATEGIES = [:SUMMARY, :READ, :WRITE, :SETUP, :ALL]
   FORMATTERS = [:default, :fds, :files, :time, :calls, :cpu, :bytes]
   def test_trace
-    IO.trace{ IO.read(__FILE__) }
+    assert_match(/TestTrace/, IO.trace{ IO.read(__FILE__) })
+    assert_raises ArgumentError do
+      IO.trace(:undefined){}
+    end
+    assert_raises ArgumentError do
+      IO.trace(/regex/){}
+    end
   end
 
   def test_incompatible_formatter
@@ -16,11 +21,12 @@ class TestTrace < Test::Unit::TestCase
     IO::Trace.formatter :test do |a,b|
     end
     assert IO::Trace::FORMATTERS.key?(:test)
+    IO::Trace::FORMATTERS.delete(:test)
   end
 
   def test_trace_stream
-    STRATEGIES.each do |s|
-      FORMATTERS.each do |fmt|
+    IO::Trace::STRATEGIES.each do |s|
+      IO::Trace.formatters.each do |fmt|
         logger = Logger.new(STDOUT)
         puts
         pp "======================================"

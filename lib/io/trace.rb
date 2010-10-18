@@ -2,6 +2,8 @@ require File.expand_path('../../../ext/io/trace', __FILE__)
 
 class IO
   class Trace
+    STRATEGIES = [:SUMMARY, :READ, :WRITE, :SETUP, :ALL]
+
     BANNER = "File                                     Line    Syscall            FD   Feature\n\n".freeze
 
     autoload :Middleware, File.join(File.dirname(__FILE__), 'trace/middleware')
@@ -41,6 +43,10 @@ class IO
       raise ArgumentError.new("Expects a lambda / proc with 2 arguments") if blk.arity != 2
       FORMATTERS[name.to_sym] = blk
     end
+
+    def self.formatters
+      FORMATTERS.keys
+    end
   end
 
   # Main IO.trace interface
@@ -57,12 +63,16 @@ class IO
     case strategy
     when Fixnum
       strategy
-    when Symbol
-      Trace.const_get(strategy)
+    when Symbol, String
+      Trace::STRATEGIES.include?(strategy.to_sym) ? Trace.const_get(strategy) : unsupported(strategy)
     when NilClass
       Trace::SUMMARY
     else
-      raise ArgumentError, "Unsupported trace strategy #{strategy.inspect}"
+      unsupported(strategy)
     end
+  end
+
+  def self.unsupported(strategy)
+    raise ArgumentError, "Unsupported trace strategy #{strategy.inspect}"
   end
 end
