@@ -16,6 +16,13 @@ class TestAggregation < Test::Unit::TestCase
     assert a.cpu?
   end
 
+  def test_types
+    assert aggregation(:metric => 'time').time?
+    assert aggregation(:metric => 'cpu').cpu?
+    assert aggregation(:metric => 'calls').calls?
+    assert aggregation(:metric => 'bytes').bytes?
+  end
+
   private
   def aggregation(values = {})
     IO::Trace::Aggregation.new(values)

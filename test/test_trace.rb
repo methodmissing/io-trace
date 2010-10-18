@@ -5,6 +5,19 @@ class TestTrace < Test::Unit::TestCase
     IO.trace{ IO.read(__FILE__) }
   end
 
+  def test_incompatible_formatter
+    assert_raises ArgumentError do
+      IO::Trace.formatter :test do |one_arg|
+      end
+    end
+  end
+
+  def test_formatter
+    IO::Trace.formatter :test do |a,b|
+    end
+    assert IO::Trace::FORMATTERS.key?(:test)
+  end
+
   def test_trace_stream
     STRATEGIES.each do |s|
       FORMATTERS.each do |fmt|

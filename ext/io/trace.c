@@ -583,9 +583,13 @@ rb_io_trace_run(int argc, VALUE *argv, VALUE obj)
     return result;
 }
 
+#define define_strategy(strategy) \
+    rb_define_const(rb_cTrace, #strategy, INT2NUM(IO_TRACE_##strategy));
+
 void
 Init_trace()
 {
+
     id_new = rb_intern("new");
     id_call = rb_intern("call");
     id_formatters = rb_intern("FORMATTERS");
@@ -601,11 +605,11 @@ Init_trace()
 
     rb_eTraceError = rb_define_class_under(rb_cIO, "TraceError", rb_eIOError);
 
-    rb_define_const(rb_cTrace, "SUMMARY", INT2NUM(IO_TRACE_SUMMARY));
-    rb_define_const(rb_cTrace, "ALL", INT2NUM(IO_TRACE_ALL));
-    rb_define_const(rb_cTrace, "READ", INT2NUM(IO_TRACE_READ));
-    rb_define_const(rb_cTrace, "WRITE", INT2NUM(IO_TRACE_WRITE));
-    rb_define_const(rb_cTrace, "SETUP", INT2NUM(IO_TRACE_SETUP));
+    define_strategy(SUMMARY);
+    define_strategy(ALL);
+    define_strategy(READ);
+    define_strategy(WRITE);
+    define_strategy(SETUP);
 
     rb_cTraceAggregation = rb_define_class_under(rb_cTrace, "Aggregation", rb_cObject);
     rb_define_alloc_func(rb_cTraceAggregation, rb_io_trace_aggregation_alloc);

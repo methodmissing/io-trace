@@ -4,8 +4,9 @@ class IO
   class Trace
     BANNER = "File                                     Line    Syscall            FD   Feature\n\n".freeze
 
+    autoload :Middleware, File.join(File.dirname(__FILE__), 'trace/middleware')
+
     # Initial formatters - work in progress
-    # TODO: expose a formatter registration API
     #
     FORMATTERS = {
       :default => lambda{|t,s|
@@ -34,9 +35,12 @@ class IO
       :files => lambda{|t,s|
         s << "files #{t.aggregations.map{|a| a.file }.uniq.inspect}"
       }
-    }.freeze
+    }
 
-    autoload :Middleware, File.join(File.dirname(__FILE__), 'trace/middleware')
+    def self.formatter(name, &blk)
+      raise ArgumentError.new("Expects a lambda / proc with 2 arguments") if blk.arity != 2
+      FORMATTERS[name.to_sym] = blk
+    end
   end
 
   # Main IO.trace interface
