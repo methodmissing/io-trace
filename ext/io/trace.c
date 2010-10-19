@@ -512,7 +512,12 @@ rb_io_trace_event_hook(rb_event_flag_t event, VALUE data, VALUE self, ID mid, VA
 rb_io_trace_event_hook(rb_event_flag_t event, NODE *node, VALUE self, ID mid, VALUE klass)
 #endif
 {
-   if(RUBY_LINE_ENABLED()) RUBY_LINE((char*)rb_sourcefile(), (int)rb_sourceline());
+   if(RUBY_LINE_ENABLED()){
+#ifdef RUBY_VM
+     if (strncmp(rb_sourcefile(), "<internal:lib/", 13) != 0)
+#endif
+     RUBY_LINE((char*)rb_sourcefile(), (int)rb_sourceline());
+   }
 }
 
 /*
