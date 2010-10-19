@@ -17,6 +17,13 @@ typedef rb_event_t rb_event_flag_t;
     TRAP_BEG; \
     (wrap); \
     TRAP_END;
+#ifndef RSTRING_PTR
+#define RSTRING_PTR(obj) RSTRING(obj)->ptr
+#endif
+
+#ifndef RSTRING_LEN
+#define RSTRING_LEN(obj) RSTRING(obj)->len
+#endif
 #else
 #define Trace(wrap) wrap
 #endif
