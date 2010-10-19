@@ -66,7 +66,7 @@ static FILE *devnull;
     if((len = strlen(file)) >= 40) sprintf(file, "%.*s", 40, &file[len-40]); \
     len = fprintf(devnull, (fmt), file, a->line, a->syscall, a->fd, a->metric, (val)) + 1; \
     buf = ALLOC_N(char, len); \
-    len = snprintf(buf, len, (fmt), file, a->line, a->syscall, a->fd, a->metric, (val));
+    len = sprintf(buf, (fmt), file, a->line, a->syscall, a->fd, a->metric, (val));
 #define AggregationTypeP(agg) (strcmp(a->metric, agg) == 0) ? Qtrue : Qfalse;
 #define RegisterHandler(func, handler, err_msg) \
     Trace(ret = func(trace->handle, &(handler), (void*)trace)); \

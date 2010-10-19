@@ -49,7 +49,6 @@ TODO
   - Documentation
   - Bump test coverage
   - Abort early on non-superuser perms before allocating tracing resources
-  - Ruby 1.9 support
   - Instrument IO wait, not just inclusive time
   - BSD + Solaris testing
   - Guard against excessive dtrace handle consumption
