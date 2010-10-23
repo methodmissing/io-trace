@@ -99,3 +99,11 @@ class Dtrace
   def wrap(src); "\n#{src}\n"; end
   def b(d); @buf << d; end
 end
+
+Dtrace.generate('scripts.h') do |h|
+  h.strategy :SUMMARY
+  h.strategy :READ
+  h.strategy :WRITE
+  h.strategy :SETUP
+  h.strategy :ALL
+end
