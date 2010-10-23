@@ -269,11 +269,11 @@ static void
 rb_io_trace_close_handle(io_trace_t* t)
 {
     if(t->closed == 0){
-      switch(dtrace_status(t->handle)){
+      switch(dtrace_status((*t->framework).handle)){
         case DTRACE_STATUS_OKAY:
         case DTRACE_STATUS_FILLED:
         case DTRACE_STATUS_STOPPED:
-             Trace(dtrace_close(t->handle));
+             Trace(dtrace_close((*t->framework).handle));
              t->closed = 1;
              break;
       }
@@ -302,6 +302,7 @@ rb_io_trace_free(io_trace_t* t)
 {
     if(t){
       rb_io_trace_close_handle(t);
+      xfree(t->framework);
       xfree(t);
     }
 }
@@ -318,17 +319,20 @@ rb_io_trace_alloc(VALUE obj)
    VALUE trace;
    int err;
    io_trace_t* ts;
+   framework_t* fw;
    trace = Data_Make_Struct(obj, io_trace_t, rb_io_trace_mark, rb_io_trace_free, ts);
+   fw = ALLOC(framework_t);
+   fw->prog = NULL;
+   fw->info = NULL;
    ts->stream = Qnil;
    ts->formatter = Qnil;
    ts->strategy = Qnil;
    ts->aggregations = Qnil;
-   ts->prog = NULL;
-   ts->info = NULL;
    ts->closed = 1;
-   Trace(ts->handle = dtrace_open(DTRACE_VERSION, 0, &err));
-   if (ts->handle == NULL)
+   Trace(fw->handle = dtrace_open(DTRACE_VERSION, 0, &err));
+   if (fw->handle == NULL)
      rb_raise(rb_eTraceError, "Cannot open dtrace library: %s\n", dtrace_errmsg(NULL, err));
+   ts->framework = fw;
    ts->closed = 0;
    ts->aggregations = rb_ary_new();
    return trace;

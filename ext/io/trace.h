@@ -31,9 +31,7 @@ typedef rb_event_t rb_event_flag_t;
 #endif
 
 typedef struct {
-    dtrace_hdl_t *handle;
-    dtrace_prog_t *prog;
-    dtrace_proginfo_t *info;
+    framework_t *framework;
     short int closed;
     VALUE aggregations;
     VALUE stream;
@@ -42,9 +40,9 @@ typedef struct {
 } io_trace_t;
 
 typedef struct {
-    char* syscall;
-    char* metric;
-    char* file;
+    char *syscall;
+    char *metric;
+    char *file;
     int fd;
     int line;
     uint64_t value;
