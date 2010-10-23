@@ -81,3 +81,10 @@ static FILE *devnull;
 #define IO_TRACE_SETUP 5
 
 #include "scripts.h"
+
+static void  rb_io_trace_init_aggregation(io_trace_aggregation_t* as);
+static VALUE rb_io_trace_aggregation_wrap(io_trace_aggregation_t* as);
+
+#ifdef HAVE_DTRACE
+#include "frameworks/dtrace.c"
+#endif

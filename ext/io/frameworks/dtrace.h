@@ -12,6 +12,17 @@ typedef struct {
     Trace(ret = func((*trace->framework).handle, &(handler), (void*)trace)); \
     if (ret == -1) DtraceError(trace, err_msg);
 
+#define InitFramework(trace) \
+   framework_t* fw; \
+   fw = ALLOC(framework_t); \
+   fw->prog = NULL; \
+   fw->info = NULL; \
+   Trace(fw->handle = dtrace_open(DTRACE_VERSION, 0, &err)); \
+   if (fw->handle == NULL) \
+     rb_raise(rb_eTraceError, "Cannot open dtrace library: %s\n", dtrace_errmsg(NULL, err)); \
+   trace->framework = fw; \
+   ts->closed = 0;
+
 #define RegisterHandlers(trace) \
     RegisterHandler(dtrace_handle_err, rb_io_trace_errhandler, "failed to establish error handler"); \
     RegisterHandler(dtrace_handle_drop, rb_io_trace_drophandler, "failed to establish drop handler"); \
