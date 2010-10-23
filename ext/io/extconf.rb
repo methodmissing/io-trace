@@ -6,11 +6,16 @@ require 'mkmf'
 dir_config('trace')
 $defs.push("-pedantic")
 
+def add_define(name)
+  $defs.push("-D#{name}")
+end
+
 case RUBY_PLATFORM
   when /solaris/, /bsd/, /darwin/
     find_library('dtrace', 'dtrace_open')
     system("dtrace -h -o probes.h -s dtrace.d")
     require File.expand_path('../frameworks/dtrace', __FILE__)
+    add_define('HAVE_DTRACE')
   when /linux/
     raise "SystemTap support pending!"
   else

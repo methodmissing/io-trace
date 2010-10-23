@@ -1,9 +1,11 @@
 #include <ruby.h>
-#include <dtrace.h>
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <fcntl.h>
 #include "probes.h"
+#ifdef HAVE_DTRACE
+#include "frameworks/dtrace.h"
+#endif
 
 #ifndef RUBY_VM
 #include <rubysig.h>
@@ -55,8 +57,6 @@ static FILE *devnull;
 
 #define GetIOTracer(obj) (Check_Type(obj, T_DATA), (io_trace_t*)DATA_PTR(obj))
 #define GetIOTracerAggregation(obj) (Check_Type(obj, T_DATA), (io_trace_aggregation_t*)DATA_PTR(obj))
-#define DtraceErrorMsg(obj) dtrace_errmsg(obj->handle, dtrace_errno(obj->handle))
-#define DtraceError(obj, msg) rb_raise(rb_eTraceError, (msg), DtraceErrorMsg(obj))
 #define TraceError(msg) rb_raise(rb_eTraceError, (msg))
 #define BlockRequired() if (!rb_block_given_p()) rb_raise(rb_eArgError, "block required!")
 #define CoerceStringFromHash(obj) \
@@ -75,9 +75,6 @@ static FILE *devnull;
     buf = ALLOC_N(char, len); \
     len = sprintf(buf, (fmt), file, a->line, a->syscall, a->fd, a->metric, (val));
 #define AggregationTypeP(agg) (strcmp(a->metric, agg) == 0) ? Qtrue : Qfalse;
-#define RegisterHandler(func, handler, err_msg) \
-    Trace(ret = func(trace->handle, &(handler), (void*)trace)); \
-    if (ret == -1) DtraceError(trace, err_msg);
 
 #define IO_TRACE_SUMMARY 1
 #define IO_TRACE_ALL 2

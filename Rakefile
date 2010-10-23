@@ -21,6 +21,7 @@ task :test => :build
 namespace :build do
   file "#{TRACE_ROOT}/scripts.h"
   file "#{TRACE_ROOT}/probes.h"
+  file "#{TRACE_ROOT}/frameworks/dtrace.h"
   file "#{TRACE_ROOT}/trace.h"
   file "#{TRACE_ROOT}/trace.d"
   file "#{TRACE_ROOT}/trace.c"
