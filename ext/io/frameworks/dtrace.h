@@ -6,6 +6,13 @@
     Trace(ret = func(trace->handle, &(handler), (void*)trace)); \
     if (ret == -1) DtraceError(trace, err_msg);
 
+#define RegisterHandlers(trace) \
+    RegisterHandler(dtrace_handle_err, rb_io_trace_errhandler, "failed to establish error handler"); \
+    RegisterHandler(dtrace_handle_drop, rb_io_trace_drophandler, "failed to establish drop handler"); \
+    RegisterHandler(dtrace_handle_proc, rb_io_trace_prochandler, "failed to establish proc handler"); \
+    RegisterHandler(dtrace_handle_setopt, rb_io_trace_setopthandler, "failed to establish setopt handler"); \
+    RegisterHandler(dtrace_handle_buffered, rb_io_trace_bufhandler, "failed to establish buffered handler");
+
 #define CompileStrategy(trace, script) \
    Trace(trace->prog = dtrace_program_strcompile(trace->handle, script, DTRACE_PROBESPEC_NAME, DTRACE_C_CPP, 0, NULL)); \
    if(trace->prog == NULL) \

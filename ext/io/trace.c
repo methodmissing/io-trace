@@ -398,11 +398,7 @@ rb_io_trace_init(int argc, VALUE *argv, VALUE obj)
     rb_scan_args(argc, argv, "01", &trace->strategy);
     if (NIL_P(trace->strategy)) 
       trace->strategy = rb_const_get(rb_cTrace, rb_intern("SUMMARY"));
-    RegisterHandler(dtrace_handle_err, rb_io_trace_errhandler, "failed to establish error handler");
-    RegisterHandler(dtrace_handle_drop, rb_io_trace_drophandler, "failed to establish drop handler");
-    RegisterHandler(dtrace_handle_proc, rb_io_trace_prochandler, "failed to establish proc handler");
-    RegisterHandler(dtrace_handle_setopt, rb_io_trace_setopthandler, "failed to establish setopt handler");
-    RegisterHandler(dtrace_handle_buffered, rb_io_trace_bufhandler, "failed to establish buffered handler");
+    RegisterHandlers(trace);
 
     switch(FIX2INT(trace->strategy)){
       case IO_TRACE_SUMMARY : script = summary_script;
@@ -549,9 +545,9 @@ rb_io_trace_run(int argc, VALUE *argv, VALUE obj)
     rb_scan_args(argc, argv, "02", &trace->stream, &trace->formatter);
     StartTrace(trace);
 #ifdef RUBY_VM
-  rb_add_event_hook(rb_io_trace_event_hook, RUBY_EVENT_LINE, Qnil);
+    rb_add_event_hook(rb_io_trace_event_hook, RUBY_EVENT_LINE, Qnil);
 #else
-  rb_add_event_hook(rb_io_trace_event_hook, RUBY_EVENT_LINE);
+    rb_add_event_hook(rb_io_trace_event_hook, RUBY_EVENT_LINE);
 #endif
     result = rb_protect(rb_yield, obj, &status);
     rb_remove_event_hook(rb_io_trace_event_hook);
