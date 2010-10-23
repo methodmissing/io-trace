@@ -547,9 +547,7 @@ rb_io_trace_run(int argc, VALUE *argv, VALUE obj)
     BlockRequired();
 
     rb_scan_args(argc, argv, "02", &trace->stream, &trace->formatter);
-    Trace(ret = dtrace_go(trace->handle));
-    if(ret < 0)
-      DtraceError(trace, "could not enable tracing");
+    StartTrace(trace);
 #ifdef RUBY_VM
   rb_add_event_hook(rb_io_trace_event_hook, RUBY_EVENT_LINE, Qnil);
 #else
@@ -557,16 +555,7 @@ rb_io_trace_run(int argc, VALUE *argv, VALUE obj)
 #endif
     result = rb_protect(rb_yield, obj, &status);
     rb_remove_event_hook(rb_io_trace_event_hook);
-    Trace(ret = dtrace_stop(trace->handle));
-    if(ret < 0)
-      DtraceError(trace, "could not disable tracing");
-    Trace(ret = dtrace_aggregate_snap(trace->handle));
-    if(ret < 0)
-      DtraceError(trace, "could not snapshot aggregates");
-    Trace(ret = dtrace_aggregate_walk(trace->handle, rb_io_trace_walk, (void*)trace));
-    if(ret < 0)
-      DtraceError(trace, "could not walk the aggregate snapshot");
-    Trace(dtrace_aggregate_clear(trace->handle));
+    StopTrace(trace);
     if(!NIL_P(trace->stream)){
       formatter = rb_io_trace_formatter(trace);
       rb_funcall(formatter, id_call, 2, obj, trace->stream);
