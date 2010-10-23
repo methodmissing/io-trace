@@ -417,22 +417,8 @@ rb_io_trace_init(int argc, VALUE *argv, VALUE obj)
                               break;
     }
 
-    Trace(trace->prog = dtrace_program_strcompile(trace->handle, script, DTRACE_PROBESPEC_NAME, DTRACE_C_CPP, 0, NULL));
-
-    if(trace->prog == NULL)
-      rb_raise(rb_eTraceError, "failed to compile '%s': %s", script, DtraceErrorMsg(trace));
-
-    Trace(ret = dtrace_program_exec(trace->handle, trace->prog, trace->info));
-    if (ret == -1)
-      DtraceError(trace, "failed to enable probes");
-
-    Trace((void) dtrace_setopt(trace->handle, "bufsize", "4m"));
-    Trace((void) dtrace_setopt(trace->handle, "aggsize", "4m"));
-    Trace((void) dtrace_setopt(trace->handle, "flowindent", 0));
-    Trace((void) dtrace_setopt(trace->handle, "quiet", 0));
-#ifdef __APPLE__
-    Trace((void) dtrace_setopt(trace->handle, "stacksymbols", "enabled"));
-#endif
+    CompileStrategy(trace, script);
+    RunStrategy(trace);
    return obj;
 }
 
