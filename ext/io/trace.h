@@ -6,6 +6,9 @@
 #ifdef HAVE_DTRACE
 #include "frameworks/dtrace.h"
 #endif
+#ifdef HAVE_SYSTEMTAP
+#include "frameworks/systemtap.h"
+#endif
 
 #ifndef RUBY_VM
 #include <rubysig.h>

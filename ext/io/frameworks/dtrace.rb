@@ -1,4 +1,4 @@
-class Dtrace
+class Dtrace < Framework
   READ = %w(read pread readv recv)
   WRITE = %w(write pwrite writev send)
   SETUP = %w(bind socketpair getpeername shutdown open stat lstat fstat select poll connect fsync accept fcntl)
@@ -82,22 +82,6 @@ class Dtrace
   def list(scope, probes)
     b probes.map{|p| "syscall::#{p}*:#{scope}" }.join(",\n")
   end
-
-  def save
-    File.open(@header, File::CREAT | File::RDWR | File::APPEND) do |f|
-      f << wrap("static char* #{@ctx}_script =")
-      f << join_buffer
-    end
-  end
-
-  def join_buffer
-    @buf.join.split("\n").map{|l| "\"#{l.lstrip}\"\n" }.join.chomp << ';'
-  ensure
-    @buf.clear
-  end
-
-  def wrap(src); "\n#{src}\n"; end
-  def b(d); @buf << d; end
 end
 
 Dtrace.generate('scripts.h') do |h|

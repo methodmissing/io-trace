@@ -10,14 +10,17 @@ def add_define(name)
   $defs.push("-D#{name}")
 end
 
+require File.expand_path('../frameworks/framework', __FILE__)
+
 case RUBY_PLATFORM
   when /solaris/, /bsd/, /darwin/
-    find_library('dtrace', 'dtrace_open')
-    system("dtrace -h -o probes.h -s dtrace.d")
+    add_define('HAVE_DTRACE') if find_library('dtrace', 'dtrace_open')
+    system("dtrace -h -o probes.h -s trace.d")
     require File.expand_path('../frameworks/dtrace', __FILE__)
-    add_define('HAVE_DTRACE')
   when /linux/
-    raise "SystemTap support pending!"
+    add_define('HAVE_SYSTEMTAP') if have_header('sys/sdt.h')
+    system("dtrace -h -o probes.h -s trace.d")
+    require File.expand_path('../frameworks/systemtap', __FILE__)
   else
     raise "Platform #{RUBY_PLATFORM} not supported!"
 end
